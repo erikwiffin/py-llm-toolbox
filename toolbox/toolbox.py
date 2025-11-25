@@ -2,8 +2,18 @@ import inspect
 import json
 import logging
 from functools import wraps
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable
 
+if TYPE_CHECKING:
+    from openai.types.chat import ChatCompletionMessage
+
+from toolbox.messages import (
+    ChatMessage,
+    ErrorResult,
+    Result,
+    SuccessResult,
+    serialize_results,
+)
 from toolbox.schema import (
     Function,
     Parameter,
@@ -15,23 +25,25 @@ logger = logging.getLogger(__name__)
 
 
 class Toolbox:
-    def __init__(self) -> None:
+    def __init__(self):
         # Maps function names to Function data objects (may be partially populated)
         self._functions_data: dict[str, Function] = {}
 
     @property
-    def tools(self) -> list[dict[str, Any]]:
+    def tools(self):
         """Returns the list of tool definitions for the OpenAI API."""
         return build_tools_schema(self._functions_data.values())
 
     def parameter(
         self,
         name: str,
-        type: Optional[str] = None,
-        description: Optional[str] = None,
+        type: str | None = None,
+        description: str | None = None,
         required: bool = True,
-        enum: Optional[list[Any]] = None,
-    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        enum: list[str] | None = None,
+    ) -> Callable[
+        [Callable[..., Any]], Callable[..., Any]  # pyright: ignore[reportExplicitAny]
+    ]:
         """
         Decorator to define a parameter for the tool.
         Since decorators run bottom-to-top, these attach metadata to the function
@@ -46,7 +58,9 @@ class Toolbox:
             enum: Optional list of allowed values
         """
 
-        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        def decorator(
+            func: Callable[..., Any],  # pyright: ignore[reportExplicitAny]
+        ) -> Callable[..., Any]:  # pyright: ignore[reportExplicitAny]
             func_name = func.__name__
 
             # If type is not provided, extract it from the function's type annotation
@@ -59,15 +73,17 @@ class Toolbox:
                         f"Parameter '{name}' not found in function '{func.__name__}' signature"
                     )
 
-                annotation = param.annotation
+                annotation = param.annotation  # pyright: ignore[reportAny]
                 if annotation == inspect.Parameter.empty:
                     raise ValueError(
                         f"Parameter '{name}' in function '{func.__name__}' has no type annotation "
-                        "and no 'type' argument was provided. Either provide a type annotation "
-                        "or specify the 'type' argument in the decorator."
+                        + "and no 'type' argument was provided. Either provide a type annotation "
+                        + "or specify the 'type' argument in the decorator."
                     )
 
-                param_type = python_type_to_json_schema_type(annotation)
+                param_type = python_type_to_json_schema_type(
+                    annotation  # pyright: ignore[reportAny]
+                )
 
             # Create Parameter data object
             param_obj = Parameter(
@@ -91,8 +107,10 @@ class Toolbox:
         return decorator
 
     def function(
-        self, description: Optional[str] = None
-    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        self, description: str | None = None
+    ) -> Callable[
+        [Callable[..., Any]], Callable[..., Any]  # pyright: ignore[reportExplicitAny]
+    ]:
         """
         Decorator to register the function as a tool.
         This must be placed *above* @toolbox.parameter decorators.
@@ -102,7 +120,9 @@ class Toolbox:
                         the function's docstring will be used.
         """
 
-        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        def decorator(
+            func: Callable[..., Any],  # pyright: ignore[reportExplicitAny]
+        ) -> Callable[..., Any]:  # pyright: ignore[reportExplicitAny]
             func_name = func.__name__
 
             # Get or create Function object from _functions_data
@@ -122,29 +142,42 @@ class Toolbox:
 
             # Return function unchanged (or wrapped if needed for execution)
             @wraps(func)
-            def wrapper(*args: Any, **kwargs: Any) -> Any:
-                return func(*args, **kwargs)
+            def wrapper(  # pyright: ignore[reportAny]
+                *args: Any,  # pyright: ignore[reportAny, reportExplicitAny]
+                **kwargs: Any,  # pyright: ignore[reportExplicitAny, reportAny]
+            ) -> Any:  # pyright: ignore[ reportExplicitAny]
+                return func(*args, **kwargs)  # pyright: ignore[reportAny]
 
             return wrapper
 
         return decorator
 
-    def execute(self, tool_calls: Any) -> list[dict[str, Any]]:
+    def execute(
+        self, message: "ChatCompletionMessage"
+    ) -> tuple[ChatMessage, list[ChatMessage]]:
         """
-        Parses OpenAI tool calls, executes the matching functions,
-        and returns a list of results.
-        """
-        results = [
-            {
-                "role": "assistant",
-                "tool_calls": tool_calls,
-            }
-        ]
+        Executes tool calls from an OpenAI chat completion message.
 
-        if not tool_calls:
-            return results
+        Args:
+            message: The ChatCompletionMessage containing tool_calls
+
+        Returns:
+            Tuple of (assistant_message_dict, list_of_tool_result_dicts):
+            - Assistant message with tool_calls (serialized)
+            - Tool response messages
+        """
+        tool_calls = message.tool_calls or []
+
+        results: list[Result] = []
 
         for tool_call in tool_calls:
+            # Only handle function tool calls (not custom tool calls)
+            if tool_call.type != "function":
+                logger.warning(
+                    f"Skipping tool call of type '{tool_call.type}' - only 'function' type is supported"
+                )
+                continue
+
             fn_name = tool_call.function.name
             fn_args_str = tool_call.function.arguments
 
@@ -159,33 +192,33 @@ class Toolbox:
 
             try:
                 # Parse JSON arguments from LLM
-                fn_args = json.loads(fn_args_str)
+                fn_args = json.loads(fn_args_str)  # pyright: ignore[reportAny]
                 logger.info(
-                    f"Invoking tool: {fn_name}({', '.join(f'{k}={v}' for k, v in fn_args.items())})"
+                    f"Invoking tool: {fn_name}({', '.join(f'{k}={v}' for k, v in fn_args.items())})"  # pyright: ignore[reportAny]
                 )
 
                 # Execute the actual Python function
-                output = func_data.callable(**fn_args)
+                output = func_data.callable(**fn_args)  # pyright: ignore[reportAny]
 
-                # Store result (useful if you need to send it back to the LLM)
+                # Store result as SuccessResult dataclass
                 results.append(
-                    {
-                        "tool_call_id": tool_call.id,
-                        "role": "tool",
-                        "name": fn_name,
-                        "content": str(output),
-                    }
+                    SuccessResult(
+                        tool_call=tool_call,
+                        name=fn_name,
+                        output=output,
+                    )
                 )
 
             except Exception as e:
-                # Store result (useful if you need to send it back to the LLM)
+                # Store result as ErrorResult dataclass
                 results.append(
-                    {
-                        "tool_call_id": tool_call.id,
-                        "role": "tool",
-                        "name": fn_name,
-                        "content": f"Error executing {fn_name}: {e}",
-                    }
+                    ErrorResult(
+                        # tool_call=tool_call,
+                        tool_call=tool_call,
+                        name=fn_name,
+                        error=e,
+                    )
                 )
 
-        return results
+        # Serialize assistant message and results at the end
+        return serialize_results(results)

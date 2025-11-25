@@ -1,6 +1,7 @@
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from numbers import Number
-from typing import Any, Callable, Iterable, Optional, Union, get_args, get_origin
+from typing import Any, Callable
 
 
 @dataclass
@@ -9,9 +10,9 @@ class Parameter:
 
     name: str
     type: str
-    description: Optional[str] = None
+    description: str | None = None
     required: bool = True
-    enum: Optional[list[Any]] = None
+    enum: list[Any] | None = None  # pyright: ignore[reportExplicitAny]
 
 
 @dataclass
@@ -20,7 +21,7 @@ class Function:
 
     name: str = ""
     description: str = ""
-    callable: Optional[Callable[..., Any]] = None
+    callable: Callable[..., Any] | None = None  # pyright: ignore[reportExplicitAny]
     parameters: list[Parameter] = field(default_factory=list)
 
 
@@ -28,15 +29,6 @@ def python_type_to_json_schema_type(python_type: type) -> str:
     """
     Converts Python type annotations to JSON schema type strings.
     """
-    # Handle typing.Optional and Union types
-    origin = get_origin(python_type)
-    if origin is Union or origin is Optional:
-        args = get_args(python_type)
-        # For Optional[T], get the non-None type
-        non_none_args = [arg for arg in args if arg is not type(None)]
-        if non_none_args:
-            return python_type_to_json_schema_type(non_none_args[0])
-
     # Handle basic types
     type_mapping = {
         str: "string",
@@ -78,7 +70,7 @@ def build_tools_schema(functions: Iterable[Function]) -> list[dict[str, Any]]:
     Returns:
         List of tool definitions in OpenAI format
     """
-    schema = []
+    schema: list[dict[str, Any]] = []
     for func_data in functions:
         # Only include functions that have been fully registered (have name and description)
         if not func_data.name or not func_data.description:
@@ -86,7 +78,7 @@ def build_tools_schema(functions: Iterable[Function]) -> list[dict[str, Any]]:
 
         # Build properties dict from Parameter objects
         properties = {}
-        required = []
+        required: list[str] = []
 
         for param in func_data.parameters:
             param_dict: dict[str, Any] = {"type": param.type}
@@ -99,7 +91,7 @@ def build_tools_schema(functions: Iterable[Function]) -> list[dict[str, Any]]:
             if param.required:
                 required.append(param.name)
 
-        tool_definition = {
+        tool_definition: dict[str, Any] = {
             "type": "function",
             "function": {
                 "name": func_data.name,
