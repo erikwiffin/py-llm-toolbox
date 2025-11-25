@@ -5,4 +5,4 @@ from .toolbox import Toolbox
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
-toolbox = Toolbox()
+__all__ = ["Toolbox"]
