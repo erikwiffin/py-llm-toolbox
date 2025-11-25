@@ -1,0 +1,25 @@
+[project]
+name = "toolbox"
+version = "0.1.0"
+description = "Manager for LLM tool execution"
+authors = [
+    {name = "Erik Wiffin",email = "erik.wiffin@gmail.com"}
+]
+packages = [{include = "toolbox"}]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "black (>=25.11.0,<26.0.0)",
+    "jupyter (>=1.1.1,<2.0.0)",
+    "openai (>=2.8.1,<3.0.0)",
+    "nbstripout (>=0.8.2,<0.9.0)"
+]
