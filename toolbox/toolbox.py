@@ -40,10 +40,8 @@ class Toolbox:
         type: str | None = None,
         description: str | None = None,
         required: bool = True,
-        enum: list[str] | None = None,
-    ) -> Callable[
-        [Callable[..., Any]], Callable[..., Any]  # pyright: ignore[reportExplicitAny]
-    ]:
+        enum: list[str | int | float | bool] | None = None,
+    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """
         Decorator to define a parameter for the tool.
         Since decorators run bottom-to-top, these attach metadata to the function
@@ -58,9 +56,7 @@ class Toolbox:
             enum: Optional list of allowed values
         """
 
-        def decorator(
-            func: Callable[..., Any],  # pyright: ignore[reportExplicitAny]
-        ) -> Callable[..., Any]:  # pyright: ignore[reportExplicitAny]
+        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             func_name = func.__name__
 
             # If type is not provided, extract it from the function's type annotation
@@ -73,7 +69,7 @@ class Toolbox:
                         f"Parameter '{name}' not found in function '{func.__name__}' signature"
                     )
 
-                annotation = param.annotation  # pyright: ignore[reportAny]
+                annotation = param.annotation
                 if annotation == inspect.Parameter.empty:
                     raise ValueError(
                         f"Parameter '{name}' in function '{func.__name__}' has no type annotation "
@@ -81,9 +77,7 @@ class Toolbox:
                         + "or specify the 'type' argument in the decorator."
                     )
 
-                param_type = python_type_to_json_schema_type(
-                    annotation  # pyright: ignore[reportAny]
-                )
+                param_type = python_type_to_json_schema_type(annotation)
 
             # Create Parameter data object
             param_obj = Parameter(
@@ -108,9 +102,7 @@ class Toolbox:
 
     def function(
         self, description: str | None = None
-    ) -> Callable[
-        [Callable[..., Any]], Callable[..., Any]  # pyright: ignore[reportExplicitAny]
-    ]:
+    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """
         Decorator to register the function as a tool.
         This must be placed *above* @toolbox.parameter decorators.
@@ -120,9 +112,7 @@ class Toolbox:
                         the function's docstring will be used.
         """
 
-        def decorator(
-            func: Callable[..., Any],  # pyright: ignore[reportExplicitAny]
-        ) -> Callable[..., Any]:  # pyright: ignore[reportExplicitAny]
+        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             func_name = func.__name__
 
             # Get or create Function object from _functions_data
@@ -142,11 +132,8 @@ class Toolbox:
 
             # Return function unchanged (or wrapped if needed for execution)
             @wraps(func)
-            def wrapper(  # pyright: ignore[reportAny]
-                *args: Any,  # pyright: ignore[reportAny, reportExplicitAny]
-                **kwargs: Any,  # pyright: ignore[reportExplicitAny, reportAny]
-            ) -> Any:  # pyright: ignore[ reportExplicitAny]
-                return func(*args, **kwargs)  # pyright: ignore[reportAny]
+            def wrapper(*args: Any, **kwargs: Any) -> Any:
+                return func(*args, **kwargs)
 
             return wrapper
 
@@ -192,13 +179,13 @@ class Toolbox:
 
             try:
                 # Parse JSON arguments from LLM
-                fn_args = json.loads(fn_args_str)  # pyright: ignore[reportAny]
+                fn_args = json.loads(fn_args_str)
                 logger.info(
-                    f"Invoking tool: {fn_name}({', '.join(f'{k}={v}' for k, v in fn_args.items())})"  # pyright: ignore[reportAny]
+                    f"Invoking tool: {fn_name}({', '.join(f'{k}={v}' for k, v in fn_args.items())})"
                 )
 
                 # Execute the actual Python function
-                output = func_data.callable(**fn_args)  # pyright: ignore[reportAny]
+                output = func_data.callable(**fn_args)
 
                 # Store result as SuccessResult dataclass
                 results.append(
@@ -213,7 +200,6 @@ class Toolbox:
                 # Store result as ErrorResult dataclass
                 results.append(
                     ErrorResult(
-                        # tool_call=tool_call,
                         tool_call=tool_call,
                         name=fn_name,
                         error=e,

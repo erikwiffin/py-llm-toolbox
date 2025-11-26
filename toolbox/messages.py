@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from openai.types.chat import ChatCompletionMessageFunctionToolCall
@@ -16,6 +16,10 @@ class SuccessResult:
     name: str
     output: Any
 
+    @property
+    def content(self):
+        return str(self.output)
+
 
 @dataclass
 class ErrorResult:
@@ -25,13 +29,15 @@ class ErrorResult:
     name: str
     error: Exception
 
+    @property
+    def content(self):
+        return f"Error executing {self.name}: {self.error}"
 
-Result = Union[SuccessResult, ErrorResult]
+
+Result = SuccessResult | ErrorResult
 
 
-def serialize_results(
-    results: list[Result],
-) -> tuple[ChatMessage, list[ChatMessage]]:
+def serialize_results(results: list[Result]):
     """
     Converts a list of Result dataclasses to a list of dicts.
 
@@ -47,20 +53,13 @@ def serialize_results(
     }
     serialized_results: list[ChatMessage] = []
     for result in results:
-        if isinstance(result, SuccessResult):
-            content = str(result.output)
-        elif isinstance(result, ErrorResult):
-            content = f"Error executing {result.name}: {result.error}"
-        else:
-            raise TypeError(f"Unknown result type: {type(result)}")
-
         assistant_message["tool_calls"].append(result.tool_call.model_dump())
         serialized_results.append(
             {
                 "tool_call_id": result.tool_call.id,
                 "role": "tool",
                 "name": result.name,
-                "content": content,
+                "content": result.content,
             }
         )
     return assistant_message, serialized_results

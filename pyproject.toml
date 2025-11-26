@@ -30,4 +30,7 @@ dev = [
 [tool.black]
 target-version = ['py39']
 
-
+[tool.basedpyright]
+typeCheckingMode = "recommended"
+reportAny = false
+reportExplicitAny = false
