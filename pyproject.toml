@@ -11,6 +11,11 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = []
 
+[project.urls]
+Homepage = "https://github.com/erikwiffin/py-llm-toolbox"
+Repository = "https://github.com/erikwiffin/py-llm-toolbox"
+Issues = "https://github.com/erikwiffin/py-llm-toolbox/issues"
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
