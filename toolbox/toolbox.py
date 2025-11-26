@@ -1,8 +1,7 @@
 import inspect
 import json
 import logging
-from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Callable, ParamSpec, TypeVar
 
 if TYPE_CHECKING:
     from openai.types.chat import ChatCompletionMessage
@@ -24,6 +23,10 @@ from toolbox.schema import (
 logger = logging.getLogger(__name__)
 
 
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
 class Toolbox:
     def __init__(self):
         # Maps function names to Function data objects (may be partially populated)
@@ -41,7 +44,7 @@ class Toolbox:
         description: str | None = None,
         required: bool = True,
         enum: list[str | int | float | bool] | None = None,
-    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    ):
         """
         Decorator to define a parameter for the tool.
         Since decorators run bottom-to-top, these attach metadata to the function
@@ -56,7 +59,7 @@ class Toolbox:
             enum: Optional list of allowed values
         """
 
-        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        def decorator(func: Callable[P, R]) -> Callable[P, R]:
             func_name = func.__name__
 
             # If type is not provided, extract it from the function's type annotation
@@ -100,9 +103,7 @@ class Toolbox:
 
         return decorator
 
-    def function(
-        self, description: str | None = None
-    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    def function(self, description: str | None = None):
         """
         Decorator to register the function as a tool.
         This must be placed *above* @toolbox.parameter decorators.
@@ -112,7 +113,7 @@ class Toolbox:
                         the function's docstring will be used.
         """
 
-        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        def decorator(func: Callable[P, R]) -> Callable[P, R]:
             func_name = func.__name__
 
             # Get or create Function object from _functions_data
@@ -131,11 +132,7 @@ class Toolbox:
             func_data.callable = func
 
             # Return function unchanged (or wrapped if needed for execution)
-            @wraps(func)
-            def wrapper(*args: Any, **kwargs: Any) -> Any:
-                return func(*args, **kwargs)
-
-            return wrapper
+            return func
 
         return decorator
 

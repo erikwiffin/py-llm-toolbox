@@ -1,7 +1,10 @@
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from numbers import Number
-from typing import Any, Callable, TypedDict
+from typing import TYPE_CHECKING, Any, Callable, NotRequired, TypedDict
+
+if TYPE_CHECKING:
+    from openai.types.chat import ChatCompletionToolUnionParam
 
 
 @dataclass
@@ -25,43 +28,15 @@ class Function:
     parameters: list[Parameter] = field(default_factory=list)
 
 
-class ParameterSchema(TypedDict, total=False):
+class ParameterSchema(TypedDict):
     """Schema for a parameter property in the JSON schema."""
 
     type: str
-    description: str
-    enum: list[str | int | float | bool]
+    description: NotRequired[str]
+    enum: NotRequired[list[str | int | float | bool]]
 
 
-class ParametersSchema(TypedDict):
-    """Schema for the parameters object in a function definition."""
-
-    type: str
-    properties: dict[str, ParameterSchema]
-    required: list[str]
-
-
-class FunctionSchema(TypedDict):
-    """Schema for the function object in a tool definition."""
-
-    name: str
-    description: str
-    strict: bool
-    parameters: ParametersSchema
-
-
-class ToolDefinition(TypedDict):
-    """Schema for a single tool definition in OpenAI format."""
-
-    type: str
-    function: FunctionSchema
-
-
-ToolsSchema = list[ToolDefinition]
-"""Type alias for the return value of build_tools_schema."""
-
-
-def python_type_to_json_schema_type(python_type: type):
+def python_type_to_json_schema_type(python_type: type | str):
     """
     Converts Python type annotations to JSON schema type strings.
     """
@@ -95,7 +70,9 @@ def python_type_to_json_schema_type(python_type: type):
     raise ValueError(f"Unknown type: {python_type}")
 
 
-def build_tools_schema(functions: Iterable[Function]) -> ToolsSchema:
+def build_tools_schema(
+    functions: Iterable[Function],
+) -> Iterable["ChatCompletionToolUnionParam"]:
     """
     Builds the OpenAI tool schema from a list of Function objects.
 
@@ -105,7 +82,7 @@ def build_tools_schema(functions: Iterable[Function]) -> ToolsSchema:
     Returns:
         List of tool definitions in OpenAI format
     """
-    schema: ToolsSchema = []
+    schema: list["ChatCompletionToolUnionParam"] = []
     for func_data in functions:
         # Only include functions that have been fully registered (have name and description)
         if not func_data.name or not func_data.description:
