@@ -6,13 +6,7 @@ from typing import TYPE_CHECKING, Callable, ParamSpec, TypeVar
 if TYPE_CHECKING:
     from openai.types.chat import ChatCompletionMessage
 
-from toolbox.messages import (
-    ChatMessage,
-    ErrorResult,
-    Result,
-    SuccessResult,
-    serialize_results,
-)
+from toolbox.messages import ErrorResult, Result, SuccessResult
 from toolbox.schema import (
     Function,
     Parameter,
@@ -136,9 +130,7 @@ class Toolbox:
 
         return decorator
 
-    def execute(
-        self, message: "ChatCompletionMessage"
-    ) -> tuple[ChatMessage, list[ChatMessage]]:
+    def execute(self, message: "ChatCompletionMessage") -> list[Result]:
         """
         Executes tool calls from an OpenAI chat completion message.
 
@@ -157,24 +149,29 @@ class Toolbox:
         for tool_call in tool_calls:
             # Only handle function tool calls (not custom tool calls)
             if tool_call.type != "function":
-                logger.warning(
-                    f"Skipping tool call of type '{tool_call.type}' - only 'function' type is supported"
+                # Store result as ErrorResult dataclass
+                results.append(
+                    ErrorResult(
+                        tool_call=tool_call,
+                        name="unknown",
+                        error=ValueError(
+                            f"Skipping tool call of type '{tool_call.type}' - only 'function' type is supported"
+                        ),
+                    )
                 )
                 continue
 
             fn_name = tool_call.function.name
             fn_args_str = tool_call.function.arguments
 
-            if fn_name not in self._functions_data:
-                print(f"Error: Function {fn_name} not found in toolbox.")
-                continue
-
-            func_data = self._functions_data[fn_name]
-            if func_data.callable is None:
-                print(f"Error: Function {fn_name} has no callable.")
-                continue
-
             try:
+                if fn_name not in self._functions_data:
+                    raise ValueError(f"Function {fn_name} not found in toolbox.")
+
+                func_data = self._functions_data[fn_name]
+                if func_data.callable is None:
+                    raise ValueError(f"Function {fn_name} has no callable.")
+
                 # Parse JSON arguments from LLM
                 fn_args = json.loads(fn_args_str)
                 logger.info(
@@ -203,5 +200,4 @@ class Toolbox:
                     )
                 )
 
-        # Serialize assistant message and results at the end
-        return serialize_results(results)
+        return results

@@ -2,7 +2,10 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from openai.types.chat import ChatCompletionMessageFunctionToolCall
+    from openai.types.chat import (
+        ChatCompletionMessageCustomToolCall,
+        ChatCompletionMessageFunctionToolCall,
+    )
 
 # Type alias for chat messages
 ChatMessage = dict[str, Any]
@@ -25,7 +28,9 @@ class SuccessResult:
 class ErrorResult:
     """Represents an error during tool execution."""
 
-    tool_call: "ChatCompletionMessageFunctionToolCall"
+    tool_call: (
+        "ChatCompletionMessageFunctionToolCall | ChatCompletionMessageCustomToolCall"
+    )
     name: str
     error: Exception
 

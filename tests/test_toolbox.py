@@ -3,6 +3,7 @@ from openai.types.chat import ChatCompletionMessage, ChatCompletionMessageToolCa
 from openai.types.chat.chat_completion_message_tool_call import Function
 
 from toolbox import Toolbox
+from toolbox.messages import SuccessResult
 
 
 def test_hello_world():
@@ -50,25 +51,9 @@ def test_hello_world():
         ],
     )
 
-    assistant_message, tool_results = toolbox.execute(message)
-    assert assistant_message == {
-        "role": "assistant",
-        "tool_calls": [
-            {
-                "id": "123",
-                "type": "function",
-                "function": {
-                    "name": "hello_world",
-                    "arguments": '{"who": "world"}',
-                },
-            },
-        ],
-    }
-    assert tool_results == [
-        {
-            "tool_call_id": "123",
-            "role": "tool",
-            "name": "hello_world",
-            "content": "Hello world",
-        },
-    ]
+    results = toolbox.execute(message)
+
+    assert len(results) == 1
+    assert isinstance(results[0], SuccessResult)
+    assert results[0].name == "hello_world"
+    assert results[0].content == "Hello world"
