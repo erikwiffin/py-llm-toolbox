@@ -1,4 +1,4 @@
-[project]
+[tool.poetry]
 name = "toolbox"
 version = "0.1.0"
 description = "Manager for LLM tool execution"
@@ -15,15 +15,6 @@ dependencies = []
 Homepage = "https://github.com/erikwiffin/py-llm-toolbox"
 Repository = "https://github.com/erikwiffin/py-llm-toolbox"
 Issues = "https://github.com/erikwiffin/py-llm-toolbox/issues"
-
-[tool.poetry]
-name = "toolbox"
-version = "0.1.0"
-description = "Manager for LLM tool execution"
-authors = ["Erik Wiffin <erik.wiffin@gmail.com>"]
-license = "MIT"
-readme = "README.md"
-packages = [{include = "toolbox"}]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
